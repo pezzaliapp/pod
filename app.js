@@ -64,6 +64,21 @@ function renderList(items, header) {
     ul.appendChild(li);
   });
   content.appendChild(ul);
+  scrollSelectedIntoView();
+}
+
+// Tiene la voce selezionata dentro l'area visibile dello schermo,
+// scorrendo SOLO il contenitore .content (mai la pagina).
+function scrollSelectedIntoView() {
+  const li = content.querySelector('li.active');
+  if (!li) return;
+  const cRect = content.getBoundingClientRect();
+  const liRect = li.getBoundingClientRect();
+  if (liRect.top < cRect.top) {
+    content.scrollTop -= (cRect.top - liRect.top);
+  } else if (liRect.bottom > cRect.bottom) {
+    content.scrollTop += (liRect.bottom - cRect.bottom);
+  }
 }
 
 function render() {
