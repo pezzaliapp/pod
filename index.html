@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#111111" />
+  <title>Pod Classic — lettore musicale PWA</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="app-shell">
+    <section class="device" aria-label="Lettore musicale stile iPod classico">
+      <div class="screen" id="screen">
+        <header class="statusbar">
+          <span id="screenTitle">Musica</span>
+          <span class="battery"><span></span></span>
+        </header>
+        <div class="content" id="content"></div>
+      </div>
+
+      <div class="wheel" id="wheel" aria-label="Ghiera di controllo">
+        <button class="wheel-btn top" id="btnMenu" aria-label="Menu">MENU</button>
+        <button class="wheel-btn left" id="btnPrev" aria-label="Precedente">◀◀</button>
+        <button class="wheel-btn right" id="btnNext" aria-label="Successivo">▶▶</button>
+        <button class="wheel-btn bottom" id="btnPlay" aria-label="Play pausa">▶❚❚</button>
+        <button class="select" id="btnSelect" aria-label="Seleziona"></button>
+      </div>
+    </section>
+
+    <section class="side-panel">
+      <h1>Pod Classic</h1>
+      <p>Carica brani dal telefono o dal computer. La musica resta locale: non viene inviata online.</p>
+      <label class="filepick">
+        Aggiungi musica
+        <input id="fileInput" type="file" accept="audio/*" multiple />
+      </label>
+      <button id="installBtn" class="secondary" hidden>Installa app</button>
+      <p class="note">Controlli: ghiera touch/mouse per scorrere, centro per selezionare, MENU per tornare indietro.</p>
+    </section>
+  </main>
+
+  <audio id="audio"></audio>
+  <script src="app.js"></script>
+</body>
+</html>
