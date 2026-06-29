@@ -29,7 +29,7 @@
 
     <section class="intro">
       <h1>Pod Classic</h1>
-      <p>Carica MP3 dal computer o dal telefono. I file restano locali: non vengono inviati online.</p>
+      <p>Carica MP3 dal computer o dal telefono, oppure ascolta la radio. I file restano locali: non vengono inviati online.</p>
       <div class="actions">
         <label class="primary">
           Aggiungi musica
@@ -37,12 +37,19 @@
         </label>
         <button id="installBtn" class="secondary" type="button" hidden>Installa app</button>
       </div>
-      <p class="hint">Usa la ghiera per scorrere, il centro per selezionare, MENU per tornare indietro. Su iPhone/Android serve un gesto dell’utente per far partire l’audio: premi il tasto centrale o Play.</p>
+      <p class="hint">Usa la ghiera per scorrere, il centro per selezionare, MENU per tornare indietro. Su iPhone/Android serve un gesto dell'utente per far partire l'audio: premi il tasto centrale o Play.</p>
       <p class="hint"><b>Nota:</b> per provarla correttamente usa un piccolo server locale o GitHub Pages, non aprire direttamente index.html con file://.</p>
     </section>
   </main>
 
+  <div id="toast" class="toast"></div>
+
   <audio id="audio" preload="metadata"></audio>
+
+  <!-- HLS per le radio .m3u8 (Safari le legge nativamente) -->
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+  <!-- app principale: definisce window.Pod, poi il modulo radio si aggancia -->
   <script src="app.js"></script>
+  <script src="radio.js"></script>
 </body>
 </html>

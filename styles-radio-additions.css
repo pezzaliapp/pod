@@ -1,0 +1,41 @@
+/* === Aggiunte per il modulo Radio — appendi a styles.css === */
+
+.toast{
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%) translateY(20px);
+  background: rgba(20,20,20,.95);
+  color: #fff;
+  font-size: 13px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  max-width: 84%;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .25s ease, transform .25s ease;
+  z-index: 9999;
+}
+.toast.show{ opacity: 1; transform: translateX(-50%) translateY(0); }
+
+.cover.radio{
+  background: radial-gradient(circle at 50% 40%, #3a3a3a, #111);
+  position: relative;
+}
+.cover.radio::after{
+  content: "📻";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 28px;
+}
+.live-dot{
+  color: #ff5252;
+  font-size: 11px;
+  letter-spacing: .08em;
+  margin-top: 6px;
+  animation: pulse 1.4s infinite;
+}
+@keyframes pulse{ 0%,100%{opacity:1} 50%{opacity:.35} }

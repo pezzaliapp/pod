@@ -6,6 +6,7 @@ const content = $('content');
 const title = $('screenTitle');
 const fileInput = $('fileInput');
 const installBtn = $('installBtn');
+const toastEl = $('toast');
 
 let tracks = [];
 let view = 'menu';
@@ -15,9 +16,11 @@ let current = -1;
 let deferredPrompt = null;
 let lastAngle = null;
 let wheelAccumulator = 0;
+let externalNow = null; // quando suona una radio (sorgente esterna ai "tracks")
 
 const mainMenu = [
   { label: 'Brani', action: () => openSongs() },
+  { label: 'Radio', action: () => openRadio() },
   { label: 'In riproduzione', action: () => openNow() },
   { label: 'Aggiungi musica', action: () => fileInput.click() },
   { label: 'Istruzioni', action: () => openHelp() }
@@ -35,6 +38,14 @@ function formatTime(sec) {
 }
 
 function setTitle(t) { title.textContent = t; }
+
+function toast(msg) {
+  if (!toastEl) return;
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => toastEl.classList.remove('show'), 2400);
+}
 
 function renderList(items, header) {
   setTitle(header);
@@ -61,22 +72,45 @@ function render() {
     const items = tracks.map((t, i) => ({ label: t.title || `Brano ${i + 1}`, arrow: false }));
     if (!items.length) {
       setTitle('Brani');
-      content.innerHTML = '<div class="empty">Nessun brano caricato.<br>Premi “Aggiungi musica” e seleziona uno o più MP3.</div>';
+      content.innerHTML = '<div class="empty">Nessun brano caricato.<br>Premi "Aggiungi musica" e seleziona uno o più MP3.</div>';
     } else renderList(items, `Brani ${tracks.length}`);
+  }
+  if (view === 'radio') {
+    const items = window.PodRadio ? window.PodRadio.items() : [];
+    if (!items.length) {
+      setTitle('Radio');
+      content.innerHTML = '<div class="empty">Modulo radio non caricato.</div>';
+    } else {
+      // prima voce virtuale: "Cerca radio…"
+      renderList([{ label: '🔍 Cerca radio…', arrow: false }].concat(items), `Radio ${items.length}`);
+    }
   }
   if (view === 'now') renderNow();
   if (view === 'help') renderHelp();
 }
 
 function push(nextView) { stack.push(view); view = nextView; selected = 0; render(); }
-function back() { if (view === 'now') { view = stack.pop() || 'menu'; render(); return; } if (stack.length) { view = stack.pop(); selected = 0; render(); } else { view = 'menu'; selected = 0; render(); } }
+function back() {
+  if (view === 'now') { view = stack.pop() || 'menu'; render(); return; }
+  if (stack.length) { view = stack.pop(); selected = 0; render(); }
+  else { view = 'menu'; selected = 0; render(); }
+}
 function openSongs() { push('songs'); }
+function openRadio() { if (window.PodRadio) window.PodRadio.resetDemo(); push('radio'); }
 function openNow() { push('now'); }
 function openHelp() { push('help'); }
 
 function select() {
   if (view === 'menu') return mainMenu[selected]?.action();
   if (view === 'songs') return playTrack(selected);
+  if (view === 'radio') {
+    if (selected === 0) { // "Cerca radio…"
+      const q = window.prompt('Cerca una radio (nome):', '');
+      if (q && window.PodRadio) window.PodRadio.search(q.trim());
+      return;
+    }
+    return window.PodRadio && window.PodRadio.select(selected - 1);
+  }
   if (view === 'now') return togglePlay();
   if (view === 'help') return back();
 }
@@ -85,6 +119,7 @@ function move(delta) {
   let max = 0;
   if (view === 'menu') max = mainMenu.length;
   if (view === 'songs') max = tracks.length;
+  if (view === 'radio') max = (window.PodRadio ? window.PodRadio.count() : 0) + 1; // +1 per "Cerca"
   if (view === 'now' || view === 'help') return;
   if (!max) return;
   selected = (selected + delta + max) % max;
@@ -94,17 +129,24 @@ function move(delta) {
 async function playTrack(index) {
   const t = tracks[index];
   if (!t) return;
+  externalNow = null;
   current = index;
   audio.pause();
   audio.src = t.url;
   audio.currentTime = 0;
   view = 'now';
-  stack = ['menu','songs'];
+  stack = ['menu', 'songs'];
   render();
   try { await audio.play(); } catch (err) { renderNow('Premi Play per avviare'); }
 }
 
 async function togglePlay() {
+  if (externalNow) { // radio in corso
+    try { if (audio.paused) await audio.play(); else audio.pause(); }
+    catch (e) { renderNow('Tocca di nuovo Play'); }
+    renderNow();
+    return;
+  }
   if (current < 0 && tracks.length) current = 0;
   if (current < 0) return;
   if (!audio.src) audio.src = tracks[current].url;
@@ -117,19 +159,36 @@ async function togglePlay() {
 }
 
 function nextTrack() {
+  if (externalNow) return; // le radio non hanno "prossimo brano"
   if (!tracks.length) return;
   const next = current < 0 ? 0 : (current + 1) % tracks.length;
   playTrack(next);
 }
 
 function prevTrack() {
+  if (externalNow) return;
   if (!tracks.length) return;
   if (audio.currentTime > 3) { audio.currentTime = 0; return; }
   const prev = current < 0 ? 0 : (current - 1 + tracks.length) % tracks.length;
   playTrack(prev);
 }
 
-function renderNow(msg='') {
+function renderNow(msg = '') {
+  // sorgente radio
+  if (externalNow) {
+    setTitle(audio.paused ? 'In pausa' : 'In onda');
+    content.innerHTML = `
+      <div class="now">
+        <div class="cover radio"></div>
+        <div class="track-title"></div>
+        <div class="track-meta"></div>
+        <div class="live-dot">● LIVE</div>
+        <div class="small">${msg || (audio.paused ? 'Premi Play o il centro' : 'In diretta')}</div>
+      </div>`;
+    content.querySelector('.track-title').textContent = externalNow.title;
+    content.querySelector('.track-meta').textContent = externalNow.meta || 'Radio';
+    return;
+  }
   setTitle(audio.paused ? 'In pausa' : 'Ora suona');
   const t = tracks[current];
   if (!t) {
@@ -154,7 +213,7 @@ function renderNow(msg='') {
 
 function renderHelp() {
   setTitle('Istruzioni');
-  content.innerHTML = '<div class="small">1. Premi Aggiungi musica.<br>2. Seleziona MP3/audio.<br>3. Entra in Brani.<br>4. Premi centro sul brano.<br><br>Per PWA usa https://GitHub Pages o un server locale. Evita file://.</div>';
+  content.innerHTML = '<div class="small">1. Premi Aggiungi musica.<br>2. Seleziona MP3/audio.<br>3. Entra in Brani.<br>4. Premi centro sul brano.<br><br>Radio: entra in "Radio", scegli una stazione o "Cerca radio…".<br><br>Per PWA usa https://GitHub Pages o un server locale. Evita file://.</div>';
 }
 
 fileInput.addEventListener('change', (e) => {
@@ -182,11 +241,11 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' || e.key === 'Backspace') back();
 });
 
-audio.addEventListener('timeupdate', () => { if (view === 'now') renderNow(); });
+audio.addEventListener('timeupdate', () => { if (view === 'now' && !externalNow) renderNow(); });
 audio.addEventListener('ended', nextTrack);
 audio.addEventListener('play', () => { if (view === 'now') renderNow(); });
 audio.addEventListener('pause', () => { if (view === 'now') renderNow(); });
-audio.addEventListener('error', () => renderNow('Formato non supportato dal browser'));
+audio.addEventListener('error', () => { if (view === 'now') renderNow('Formato/stream non supportato'); });
 
 function angleFromEvent(ev, el) {
   const r = el.getBoundingClientRect();
@@ -217,7 +276,17 @@ window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); defe
 installBtn.addEventListener('click', async () => { if (!deferredPrompt) return; deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt = null; installBtn.hidden = true; });
 
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
 }
+
+/* ---------------------------------------------------------
+   API esposta al modulo radio.js (window.PodRadio lo usa)
+   --------------------------------------------------------- */
+window.Pod = {
+  audio,
+  toastNow: toast,
+  setExternalNow(info) { externalNow = info; current = -1; view = 'now'; stack = ['menu', 'radio']; render(); },
+  rerenderRadio() { if (view === 'radio') { selected = 0; render(); } }
+};
 
 render();
